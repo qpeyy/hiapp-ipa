@@ -1,0 +1,45 @@
+name: Build IPA
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Archive
+        run: |
+          xcodebuild archive \
+            -project HiApp.xcodeproj \
+            -scheme HiApp \
+            -configuration Release \
+            -sdk iphoneos \
+            -archivePath build/HiApp.xcarchive \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY=""
+
+      - name: List archive contents
+        run: ls build/HiApp.xcarchive/Products/Applications/
+
+      - name: Package IPA
+        run: |
+          mkdir -p build/Payload
+          cp -r build/HiApp.xcarchive/Products/Applications/HiApp.app build/Payload/
+          cd build && zip -r HiApp.ipa Payload
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: HiApp-ipa
+          path: build/HiApp.ipa
